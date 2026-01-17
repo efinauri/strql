@@ -10,17 +10,17 @@ type PatternId = usize;
 struct Preference(Vec<i64>);
 
 impl Preference {
+    fn with_size(size: usize) -> Self {
+        Preference(vec![0; size])
+    }
+
+    #[inline]
     fn add_at(&mut self, depth: usize, val: i64) {
-        if depth >= self.0.len() {
-            self.0.resize(depth + 1, 0);
-        }
         self.0[depth] += val;
     }
 
+    #[inline]
     fn combine(&mut self, other: &Preference) {
-        if other.0.len() > self.0.len() {
-            self.0.resize(other.0.len(), 0);
-        }
         for (i, &val) in other.0.iter().enumerate() {
             self.0[i] += val;
         }
@@ -144,14 +144,22 @@ pub struct Solver<'a> {
     memo: Vec<VResult>,  // size: indexed_statements.len() * (input.len() + 1)
     memo_set: Vec<bool>, // tracking which memo entries are valid
     case_mode: CaseMode,
+
+    max_preference_depth: usize,
 }
 
 impl VResult {
-    fn single(next_pos: usize, score: i64, trace: MatchTrace, input_len: usize) -> Self {
+    fn single(
+        next_pos: usize,
+        score: i64,
+        trace: MatchTrace,
+        input_len: usize,
+        max_preference_depth: usize,
+    ) -> Self {
         let mut matches = MatchMap::new(input_len);
         matches.data[next_pos] = Some(MatchOutcome::Unique(Match {
             score,
-            preference: Preference::default(),
+            preference: Preference::with_size(max_preference_depth),
             trace,
         }));
         matches.active.push(next_pos);
@@ -247,6 +255,7 @@ impl<'a> Solver<'a> {
             memo: Vec::new(),
             memo_set: Vec::new(),
             case_mode: CaseMode::Normal,
+            max_preference_depth: 0,
         };
 
         for (i, stmt) in program.statements.iter().enumerate() {
@@ -262,14 +271,14 @@ impl<'a> Solver<'a> {
         let flat = match &p.node {
             PatternKind::Literal(s) => FlatPattern::Literal(s.clone()),
             PatternKind::Variable(name) => {
-                if let Some(&id) = self.pattern_ids.get(name) {
-                    return Ok(id);
+                return if let Some(&id) = self.pattern_ids.get(name) {
+                    Ok(id)
                 } else {
-                    return Err(StrqlError::UnboundVariable {
+                    Err(StrqlError::UnboundVariable {
                         _name: name.clone(),
                         _src: self.src_to_named(),
                         _span: p.span.clone().into(),
-                    });
+                    })
                 }
             }
             PatternKind::Builtin(b) => FlatPattern::Builtin(b.clone()),
@@ -376,11 +385,14 @@ impl<'a> Solver<'a> {
         }
 
         // Ensure all have some reasonable depth if unreachable
+        let mut max_depth = 0;
         for i in 0..n {
+            max_depth = std::cmp::max(max_depth, self.indexed_statements[i].depth);
             if self.indexed_statements[i].depth == usize::MAX {
                 self.indexed_statements[i].depth = 0;
             }
         }
+        self.max_preference_depth = max_depth;
     }
 
     pub fn solve(&mut self, input: &'a str) -> StrqlResult<Value> {
@@ -392,8 +404,8 @@ impl<'a> Solver<'a> {
         let text_id = if let Some(&id) = self.pattern_ids.get("TEXT") {
             id
         } else {
-            return Err(StrqlError::NoTextStatement{
-                _src: self.src_to_named()
+            return Err(StrqlError::NoTextStatement {
+                _src: self.src_to_named(),
             });
         };
 
@@ -486,6 +498,7 @@ impl<'a> Solver<'a> {
                         s.len() as i64,
                         MatchTrace::default(),
                         input_len,
+                        self.max_preference_depth,
                     )
                 } else {
                     VResult::NoMatch
@@ -523,7 +536,13 @@ impl<'a> Solver<'a> {
             }
 
             FlatPattern::Sequence(seq) => {
-                let mut current_results = VResult::single(pos, 0, MatchTrace::default(), input_len);
+                let mut current_results = VResult::single(
+                    pos,
+                    0,
+                    MatchTrace::default(),
+                    input_len,
+                    self.max_preference_depth,
+                );
 
                 for &p_id in seq {
                     let mut next_results_map = MatchMap::new(input_len);
@@ -709,11 +728,21 @@ impl<'a> Solver<'a> {
         let input_len = self.input.len();
         let sub_pattern_id = match &self.indexed_statements[id].pattern {
             FlatPattern::Quantifier { pattern, .. } => *pattern,
-            _ => return Err(StrqlError::Internal { _message: "Indexed quantifier pattern does not index quantifier"}),
+            _ => {
+                return Err(StrqlError::Internal {
+                    _message: "Indexed quantifier pattern does not index quantifier",
+                })
+            }
         };
 
         let mut results_by_k: Vec<VResult> = Vec::new();
-        results_by_k.push(VResult::single(pos, 0, MatchTrace::default(), input_len));
+        results_by_k.push(VResult::single(
+            pos,
+            0,
+            MatchTrace::default(),
+            input_len,
+            self.max_preference_depth,
+        ));
 
         for k in 1..=max {
             let mut next_results_map = MatchMap::new(input_len);
@@ -868,7 +897,11 @@ impl<'a> Solver<'a> {
         let input_len = self.input.len();
         let b = match &self.indexed_statements[id].pattern {
             FlatPattern::Builtin(b) => b,
-            _ => return Err(StrqlError::Internal { _message: "indexed builtin pattern does not index builtin"}),
+            _ => {
+                return Err(StrqlError::Internal {
+                    _message: "indexed builtin pattern does not index builtin",
+                })
+            }
         };
         let input = self.input;
         let rest = &input[pos..];
@@ -887,7 +920,13 @@ impl<'a> Solver<'a> {
                 };
                 if matched {
                     let len = ch.len_utf8();
-                    Ok(VResult::single(pos + len, len as i64, MatchTrace::default(), input_len))
+                    Ok(VResult::single(
+                        pos + len,
+                        len as i64,
+                        MatchTrace::default(),
+                        input_len,
+                        self.max_preference_depth,
+                    ))
                 } else {
                     Ok(VResult::NoMatch)
                 }
@@ -897,7 +936,13 @@ impl<'a> Solver<'a> {
                 let ch = rest.chars().next().unwrap();
                 if ch.is_ascii_digit() {
                     let len = ch.len_utf8();
-                    Ok(VResult::single(pos + len, len as i64, MatchTrace::default(), input_len))
+                    Ok(VResult::single(
+                        pos + len,
+                        len as i64,
+                        MatchTrace::default(),
+                        input_len,
+                        self.max_preference_depth,
+                    ))
                 } else {
                     Ok(VResult::NoMatch)
                 }
@@ -907,7 +952,13 @@ impl<'a> Solver<'a> {
                 let ch = rest.chars().next().unwrap();
                 if ch.is_whitespace() && ch != '\n' {
                     let len = ch.len_utf8();
-                    Ok(VResult::single(pos + len, len as i64, MatchTrace::default(), input_len))
+                    Ok(VResult::single(
+                        pos + len,
+                        len as i64,
+                        MatchTrace::default(),
+                        input_len,
+                        self.max_preference_depth,
+                    ))
                 } else {
                     Ok(VResult::NoMatch)
                 }
@@ -915,7 +966,13 @@ impl<'a> Solver<'a> {
 
             Builtin::Newline => {
                 if rest.starts_with('\n') {
-                    Ok(VResult::single(pos + 1, 1, MatchTrace::default(), input_len))
+                    Ok(VResult::single(
+                        pos + 1,
+                        1,
+                        MatchTrace::default(),
+                        input_len,
+                        self.max_preference_depth,
+                    ))
                 } else {
                     Ok(VResult::NoMatch)
                 }
@@ -930,7 +987,13 @@ impl<'a> Solver<'a> {
                 };
                 if ok {
                     let len = ch.len_utf8();
-                    Ok(VResult::single(pos + len, len as i64, MatchTrace::default(), input_len))
+                    Ok(VResult::single(
+                        pos + len,
+                        len as i64,
+                        MatchTrace::default(),
+                        input_len,
+                        self.max_preference_depth,
+                    ))
                 } else {
                     Ok(VResult::NoMatch)
                 }
@@ -960,7 +1023,13 @@ impl<'a> Solver<'a> {
                 };
 
                 if ok {
-                    Ok(VResult::single(end, (end - pos) as i64, MatchTrace::default(), input_len))
+                    Ok(VResult::single(
+                        end,
+                        (end - pos) as i64,
+                        MatchTrace::default(),
+                        input_len,
+                        self.max_preference_depth,
+                    ))
                 } else {
                     Ok(VResult::NoMatch)
                 }
