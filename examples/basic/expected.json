@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "kind": "animals",
+      "members": [
+        "cats",
+        "dogs",
+        "mice"
+      ]
+    },
+    {
+      "kind": "furniture",
+      "members": [
+        "tables",
+        "chairs"
+      ]
+    },
+    {
+      "comment": "not fruits",
+      "kind": "vegetables",
+      "members": [
+        "tomatoes"
+      ]
+    }
+  ]
+}

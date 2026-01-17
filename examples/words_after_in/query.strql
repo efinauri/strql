@@ -1,0 +1,4 @@
+TEXT = greedy 1..n match rest
+match = any " in " wordafter
+wordafter = greedy word -> add to root.words[]
+rest = line

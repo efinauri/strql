@@ -1,0 +1,1 @@
+cargo run -- examples/"$1"/query.strql examples/"$1"/test.txt

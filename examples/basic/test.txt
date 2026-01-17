@@ -1,0 +1,3 @@
+cats, dogs and mice are animals
+tables and chairs are furniture
+tomatoes are vegetables - not fruits

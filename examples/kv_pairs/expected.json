@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "color": "red",
+      "shape": "rectangle"
+    },
+    {
+      "color": "blue",
+      "shape": "circle"
+    },
+    {
+      "color": "green",
+      "shape": "square"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+TEXT = w SPLITBY "."
+w = ANY -> add to root.results[]

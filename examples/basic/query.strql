@@ -1,0 +1,7 @@
+text = l splitby newline
+l = members " are " kind 0..1 (" - " comment) -> add item{} to root.items[]
+members = member splitby msep
+msep = ", " OR " and "
+member = word -> add member to item.members[]
+kind = word -> add to item
+comment = line -> add to item

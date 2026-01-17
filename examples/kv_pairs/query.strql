@@ -1,0 +1,5 @@
+TEXT = r SPLITBY NEWLINE
+r = f SPLITBY ", " -> ADD item{} TO ROOT.items[]
+f = key ": " value
+key = WORD
+value = WORD -> ADD TO item[key]

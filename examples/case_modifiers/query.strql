@@ -1,0 +1,4 @@
+TEXT = (u SPACE l SPACE a)
+u = UPPER WORD -> ADD TO ROOT.upper
+l = LOWER WORD -> ADD TO ROOT.lower
+a = ANYCASE "AnyCase" -> ADD TO ROOT.anycase
