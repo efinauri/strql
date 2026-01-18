@@ -16,11 +16,23 @@ impl Preference {
 
     #[inline]
     fn add_at(&mut self, depth: usize, val: i64) {
+        debug_assert!(
+            depth < self.0.len(),
+            "Preference::add_at: depth {} out of bounds (len {})",
+            depth,
+            self.0.len()
+        );
         self.0[depth] += val;
     }
 
     #[inline]
     fn combine(&mut self, other: &Preference) {
+        debug_assert!(
+            self.0.len() == other.0.len(),
+            "Preference::combine: size mismatch (self.len={}, other.len={})",
+            self.0.len(),
+            other.0.len()
+        );
         for (i, &val) in other.0.iter().enumerate() {
             self.0[i] += val;
         }
@@ -114,6 +126,15 @@ impl MatchMap {
     }
 
     fn iter(&self) -> impl Iterator<Item = (&usize, &MatchOutcome)> {
+        // Invariant: all indices in active must have Some value in data
+        #[cfg(debug_assertions)]
+        for &idx in &self.active {
+            debug_assert!(
+                idx < self.data.len() && self.data[idx].is_some(),
+                "MatchMap invariant violated: active index {} has no data",
+                idx
+            );
+        }
         self.active
             .iter()
             .map(|i| (i, self.data[*i].as_ref().unwrap()))
@@ -156,6 +177,16 @@ impl VResult {
         input_len: usize,
         max_preference_depth: usize,
     ) -> Self {
+        debug_assert!(
+            next_pos <= input_len,
+            "VResult::single: next_pos {} exceeds input_len {}",
+            next_pos,
+            input_len
+        );
+        debug_assert!(
+            max_preference_depth > 0,
+            "VResult::single: max_preference_depth must be > 0"
+        );
         let mut matches = MatchMap::new(input_len);
         matches.data[next_pos] = Some(MatchOutcome::Unique(Match {
             score,
@@ -179,6 +210,12 @@ impl<'a> NamedSourceExt<'a> for Solver<'a> {
 
 impl<'a> Solver<'a> {
     fn merge_outcome(map: &mut MatchMap, next_pos: usize, new_outcome: MatchOutcome) {
+        debug_assert!(
+            next_pos < map.data.len(),
+            "merge_outcome: next_pos {} out of bounds (data.len={})",
+            next_pos,
+            map.data.len()
+        );
         if let Some(existing) = &mut map.data[next_pos] {
             let existing_score = match existing {
                 MatchOutcome::Unique(m) => m.score,
@@ -387,12 +424,26 @@ impl<'a> Solver<'a> {
         // Ensure all have some reasonable depth if unreachable
         let mut max_depth = 0;
         for i in 0..n {
-            max_depth = std::cmp::max(max_depth, self.indexed_statements[i].depth);
-            if self.indexed_statements[i].depth == usize::MAX {
+            let depth = self.indexed_statements[i].depth;
+            if depth == usize::MAX {
                 self.indexed_statements[i].depth = 0;
+            } else {
+                max_depth = std::cmp::max(max_depth, depth);
             }
         }
-        self.max_preference_depth = max_depth;
+        self.max_preference_depth = max_depth + 1;
+
+        // Verify invariant: all depths must be < max_preference_depth
+        #[cfg(debug_assertions)]
+        for (i, stmt) in self.indexed_statements.iter().enumerate() {
+            debug_assert!(
+                stmt.depth < self.max_preference_depth,
+                "compute_depths invariant violated: statement {} has depth {} >= max_preference_depth {}",
+                i,
+                stmt.depth,
+                self.max_preference_depth
+            );
+        }
     }
 
     pub fn solve(&mut self, input: &'a str) -> StrqlResult<Value> {
@@ -455,7 +506,27 @@ impl<'a> Solver<'a> {
     }
 
     fn viterbi(&mut self, id: PatternId, pos: usize) -> StrqlResult<VResult> {
+        debug_assert!(
+            id < self.indexed_statements.len(),
+            "viterbi: pattern id {} out of bounds (len {})",
+            id,
+            self.indexed_statements.len()
+        );
+        debug_assert!(
+            pos <= self.input.len(),
+            "viterbi: pos {} exceeds input length {}",
+            pos,
+            self.input.len()
+        );
+
         let idx = id * (self.input.len() + 1) + pos;
+        debug_assert!(
+            idx < self.memo.len(),
+            "viterbi: memo index {} out of bounds (len {})",
+            idx,
+            self.memo.len()
+        );
+
         if self.memo_set[idx] {
             return Ok(self.memo[idx].clone());
         }
@@ -725,6 +796,19 @@ impl<'a> Solver<'a> {
         mode: QuantifierBias,
         pos: usize,
     ) -> StrqlResult<VResult> {
+        debug_assert!(
+            min <= max,
+            "eval_quantifier: min {} > max {}",
+            min,
+            max
+        );
+        debug_assert!(
+            pos <= self.input.len(),
+            "eval_quantifier: pos {} exceeds input length {}",
+            pos,
+            self.input.len()
+        );
+
         let input_len = self.input.len();
         let sub_pattern_id = match &self.indexed_statements[id].pattern {
             FlatPattern::Quantifier { pattern, .. } => *pattern,
@@ -734,6 +818,12 @@ impl<'a> Solver<'a> {
                 })
             }
         };
+
+        debug_assert!(
+            sub_pattern_id < self.indexed_statements.len(),
+            "eval_quantifier: sub_pattern_id {} out of bounds",
+            sub_pattern_id
+        );
 
         let mut results_by_k: Vec<VResult> = Vec::new();
         results_by_k.push(VResult::single(
