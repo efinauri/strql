@@ -50,15 +50,7 @@ pub enum PatternKind {
     Group(Box<Pattern>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Bound {
-    /// `0..<1>`
-    Literal(usize),
-    /// `0..<n>`
-    Variable(String),
-    /// implicit in higher order constructs like `WORD` (which is `0..<anon> LETTER`)
-    Anonymous,
-}
+pub type Bound = Option<usize>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Builtin {
@@ -139,20 +131,7 @@ impl PatternKind {
                     p.node.collect_variables(vars);
                 }
             }
-            PatternKind::Repetition {
-                pattern,
-                min,
-                max,
-                bias: _,
-            } => {
-                pattern.node.collect_variables(vars);
-                if let Bound::Variable(v) = min {
-                    vars.push(v);
-                }
-                if let Bound::Variable(v) = max {
-                    vars.push(v);
-                }
-            }
+            PatternKind::Repetition { pattern, .. } => pattern.node.collect_variables(vars),
             PatternKind::AnyCase(p)
             | PatternKind::Upper(p)
             | PatternKind::Lower(p)

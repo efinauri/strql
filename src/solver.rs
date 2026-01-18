@@ -103,6 +103,35 @@ enum MatchOutcome {
     },
 }
 
+impl MatchOutcome {
+    fn extending_with_sub(extendee: &Match, sub: &Self) -> Self {
+        match sub {
+            MatchOutcome::Unique(sm) => {
+                let mut new_trace = extendee.trace.clone();
+                new_trace.extend(sm.trace.clone());
+                let mut new_pref = extendee.preference.clone();
+                new_pref.combine(&sm.preference);
+                MatchOutcome::Unique(Match {
+                    score: extendee.score + sm.score,
+                    preference: new_pref,
+                    trace: new_trace,
+                })
+            }
+            MatchOutcome::Ambiguous {
+                best_score: bs,
+                best_preference: bp,
+            } => {
+                let mut new_pref = extendee.preference.clone();
+                new_pref.combine(bp);
+                MatchOutcome::Ambiguous {
+                    best_score: extendee.score + bs,
+                    best_preference: new_pref,
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct MatchMap {
     data: Vec<Option<MatchOutcome>>,
@@ -623,31 +652,8 @@ impl<'a> Solver<'a> {
                                 MatchOutcome::Unique(m) => {
                                     let res = self.viterbi(p_id, cur_pos)?;
                                     if let VResult::Matches(sub_matches) = res {
-                                        for (&next_pos, sub_outcome) in sub_matches.iter() {
-                                            let new_outcome = match sub_outcome {
-                                                MatchOutcome::Unique(sm) => {
-                                                    let mut new_trace = m.trace.clone();
-                                                    new_trace.extend(sm.trace.clone());
-                                                    let mut new_pref = m.preference.clone();
-                                                    new_pref.combine(&sm.preference);
-                                                    MatchOutcome::Unique(Match {
-                                                        score: m.score + sm.score,
-                                                        preference: new_pref,
-                                                        trace: new_trace,
-                                                    })
-                                                }
-                                                MatchOutcome::Ambiguous {
-                                                    best_score: bs,
-                                                    best_preference: bp,
-                                                } => {
-                                                    let mut new_pref = m.preference.clone();
-                                                    new_pref.combine(bp);
-                                                    MatchOutcome::Ambiguous {
-                                                        best_score: m.score + bs,
-                                                        best_preference: new_pref,
-                                                    }
-                                                }
-                                            };
+                                        for (&next_pos, sub) in sub_matches.iter() {
+                                            let new_outcome = MatchOutcome::extending_with_sub(m, sub);
                                             Self::merge_outcome(
                                                 &mut next_results_map,
                                                 next_pos,
@@ -721,12 +727,8 @@ impl<'a> Solver<'a> {
                 pattern: _,
                 mode,
             } => {
-                let min_val = if let Bound::Literal(n) = min { *n } else { 0 };
-                let max_val = if let Bound::Literal(n) = max {
-                    *n
-                } else {
-                    input_len - pos
-                };
+                let min_val = min.unwrap_or(0);
+                let max_val = max.unwrap_or(input_len - pos);
                 self.eval_quantifier(id, min_val.min(max_val), max_val.max(min_val), *mode, pos)?
             }
         };
@@ -835,37 +837,14 @@ impl<'a> Solver<'a> {
                 for (&cur_pos, outcome) in prev_matches.iter() {
                     let res = self.viterbi(sub_pattern_id, cur_pos)?;
                     if let VResult::Matches(sub_matches) = res {
-                        for (&next_pos, sub_outcome) in sub_matches.iter() {
+                        for (&next_pos, sub) in sub_matches.iter() {
                             let new_outcome = match outcome {
-                                MatchOutcome::Unique(m) => match sub_outcome {
-                                    MatchOutcome::Unique(sm) => {
-                                        let mut new_trace = m.trace.clone();
-                                        new_trace.extend(sm.trace.clone());
-                                        let mut new_pref = m.preference.clone();
-                                        new_pref.combine(&sm.preference);
-                                        MatchOutcome::Unique(Match {
-                                            score: m.score + sm.score,
-                                            preference: new_pref,
-                                            trace: new_trace,
-                                        })
-                                    }
-                                    MatchOutcome::Ambiguous {
-                                        best_score: bs,
-                                        best_preference: bp,
-                                    } => {
-                                        let mut new_pref = m.preference.clone();
-                                        new_pref.combine(bp);
-                                        MatchOutcome::Ambiguous {
-                                            best_score: m.score + bs,
-                                            best_preference: new_pref,
-                                        }
-                                    }
-                                },
+                                MatchOutcome::Unique(m) => MatchOutcome::extending_with_sub(m, sub),
                                 MatchOutcome::Ambiguous {
                                     best_score: bs,
                                     best_preference: bp,
                                 } => {
-                                    let (sub_score, sub_pref) = match sub_outcome {
+                                    let (sub_score, sub_pref) = match sub {
                                         MatchOutcome::Unique(sm) => (sm.score, &sm.preference),
                                         MatchOutcome::Ambiguous {
                                             best_score: s,

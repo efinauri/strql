@@ -31,6 +31,8 @@ pub enum Token {
     Lazy,
     #[token("GREEDY", ignore(case))]
     Greedy,
+    #[token("N", ignore(case))]
+    N,
 
     // Built-in patterns
     #[token("WORD", ignore(case))]
@@ -189,7 +191,19 @@ mod tests {
         assert_eq!(tokens.len(), 4);
         assert_eq!(tokens[0].token, Token::Number(0));
         assert_eq!(tokens[1].token, Token::DotDot);
-        assert_eq!(tokens[2].token, Token::Identifier("N".to_string()));
+        assert_eq!(tokens[2].token, Token::N);
+        assert_eq!(tokens[3].token, Token::Word);
+    }
+
+    #[test]
+    fn test_quantifier_lowercase_n() {
+        let source = "0..n WORD";
+        let tokens = Token::vec_from(source).unwrap();
+
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].token, Token::Number(0));
+        assert_eq!(tokens[1].token, Token::DotDot);
+        assert_eq!(tokens[2].token, Token::N);
         assert_eq!(tokens[3].token, Token::Word);
     }
 

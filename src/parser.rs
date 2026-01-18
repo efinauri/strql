@@ -177,10 +177,17 @@ impl<'a> Parser<'a> {
     fn parse_bound(&mut self, testing_for_min_bound: bool) -> StrqlResult<Bound> {
         let start_pos = self.cursor;
 
-        let bound = match self.get_and_advance_cursor() {
-            Some(Token::Number(n)) => Ok(Bound::Literal(*n)),
-            Some(Token::Identifier(idf)) => Ok(Bound::Variable(idf.clone())),
-            _ => Err(self.unexpected_token("quantifier bound (number or variable)")),
+        let bound = if testing_for_min_bound {
+            match self.get_and_advance_cursor() {
+                Some(Token::Number(n)) => Ok(Some(*n)),
+                _ => Err(self.unexpected_token("number")),
+            }
+        } else {
+            match self.get_and_advance_cursor() {
+                Some(Token::Number(n)) => Ok(Some(*n)),
+                Some(Token::N) => Ok(None),
+                _ => Err(self.unexpected_token("number or N")),
+            }
         };
 
         if testing_for_min_bound && !self.check(&[&Token::DotDot]) {
@@ -211,8 +218,8 @@ impl<'a> Parser<'a> {
             let tail_quantifier = self.make_pattern(
                 start_cursor,
                 PatternKind::Repetition {
-                    min: Bound::Literal(0),
-                    max: Bound::Anonymous,
+                    min: Some(0),
+                    max: None,
                     pattern: Box::new(tail),
                     bias,
                 },
@@ -282,8 +289,8 @@ impl<'a> Parser<'a> {
                 start_cursor,
                 PatternKind::Repetition {
                     // desugar into 0..n ANYCHAR
-                    min: Bound::Literal(0),
-                    max: Bound::Anonymous,
+                    min: Some(0),
+                    max: None,
                     pattern: Box::new(
                         self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::AnyChar)),
                     ),
@@ -294,8 +301,8 @@ impl<'a> Parser<'a> {
                 start_cursor,
                 PatternKind::Repetition {
                     // desugar into 0..n LETTER
-                    min: Bound::Literal(0),
-                    max: Bound::Anonymous,
+                    min: Some(0),
+                    max: None,
                     pattern: Box::new(
                         self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Letter)),
                     ),
@@ -306,8 +313,8 @@ impl<'a> Parser<'a> {
                 start_cursor,
                 PatternKind::Repetition {
                     // desugar into 0..n (LETTER OR DIGIT)
-                    min: Bound::Literal(0),
-                    max: Bound::Anonymous,
+                    min: Some(0),
+                    max: None,
                     pattern: Box::new(self.make_pattern(
                         start_cursor,
                         PatternKind::OrChain(vec![
@@ -466,6 +473,7 @@ impl<'a> Parser<'a> {
             | Token::Lower
             | Token::Lazy
             | Token::Greedy
+            | Token::N
             | Token::Word
             | Token::Line
             | Token::Newline
@@ -591,8 +599,8 @@ mod tests {
                     pattern,
                     bias,
                 } => {
-                    assert!(matches!(min, Bound::Literal(1)));
-                    assert!(matches!(max, Bound::Variable(n) if n == "N"));
+                    assert!(matches!(min, Some(1)));
+                    assert!(matches!(max, None));
                     assert!(matches!(pattern.node, PatternKind::Builtin(Builtin::Digit)));
                     assert_eq!(*bias, QuantifierBias::Neutral);
                 }
@@ -756,7 +764,7 @@ fourth = "D"
                     pattern: inner,
                 } => {
                     assert_eq!(*bias, QuantifierBias::Lazy);
-                    assert!(matches!(min, Bound::Literal(0)));
+                    assert!(matches!(min, Some(0)));
                     assert!(matches!(inner.node, PatternKind::Builtin(Builtin::AnyChar)));
                 }
                 _ => panic!("Expected quantifier"),
@@ -822,5 +830,55 @@ fourth = "D"
         // ROOT . words []
         // path.segments = [Root, Field("words"), ArrayAppend]
         assert_eq!(w_stmt.capture.as_ref().unwrap().path.segments.len(), 3);
+    }
+
+    #[test]
+    fn test_quantifier_numeric_bounds() {
+        // Both bounds are numbers
+        let source = "digits = 0..5 DIGIT";
+        let program = parse(source).unwrap();
+
+        match &program.statements[0] {
+            Statement { pattern, .. } => match &pattern.node {
+                PatternKind::Repetition { min, max, .. } => {
+                    assert!(matches!(min, Some(0)));
+                    assert!(matches!(max, Some(5)));
+                }
+                _ => panic!("Expected quantifier"),
+            },
+        }
+    }
+
+    #[test]
+    fn test_quantifier_lowercase_n() {
+        // Lowercase n should work for unbounded
+        let source = "digits = 1..n DIGIT";
+        let program = parse(source).unwrap();
+
+        match &program.statements[0] {
+            Statement { pattern, .. } => match &pattern.node {
+                PatternKind::Repetition { min, max, .. } => {
+                    assert!(matches!(min, Some(1)));
+                    assert!(matches!(max, None));
+                }
+                _ => panic!("Expected quantifier"),
+            },
+        }
+    }
+
+    #[test]
+    fn test_quantifier_identifier_min_rejected() {
+        // Identifier as min bound should be rejected
+        let source = "x = myvar..5 DIGIT";
+        let result = parse(source);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_quantifier_identifier_max_rejected() {
+        // Identifier as max bound should be rejected
+        let source = "x = 0..myvar DIGIT";
+        let result = parse(source);
+        assert!(result.is_err());
     }
 }
