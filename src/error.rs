@@ -56,10 +56,7 @@ pub enum StrqlError {
 
     // ========== Solver Errors (input-level) ==========
     #[error("Input does not match the pattern")]
-    #[diagnostic(
-        code(solver::no_match),
-        help("The statements do not match the input")
-    )]
+    #[diagnostic(code(solver::no_match), help("The statements do not match the input"))]
     PatternNoMatch {
         #[source_code]
         _src: NamedSource<String>,

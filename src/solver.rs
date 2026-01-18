@@ -727,7 +727,7 @@ impl<'a> Solver<'a> {
                 } else {
                     input_len - pos
                 };
-                self.eval_quantifier(id, min_val, max_val, *mode, pos)?
+                self.eval_quantifier(id, min_val.min(max_val), max_val.max(min_val), *mode, pos)?
             }
         };
 
@@ -796,12 +796,7 @@ impl<'a> Solver<'a> {
         mode: QuantifierBias,
         pos: usize,
     ) -> StrqlResult<VResult> {
-        debug_assert!(
-            min <= max,
-            "eval_quantifier: min {} > max {}",
-            min,
-            max
-        );
+        debug_assert!(min <= max, "eval_quantifier: min {} > max {}", min, max);
         debug_assert!(
             pos <= self.input.len(),
             "eval_quantifier: pos {} exceeds input length {}",

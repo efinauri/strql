@@ -66,11 +66,21 @@ impl<'a> Parser<'a> {
     }
 
     fn span_from(&self, start_cursor: usize) -> std::ops::Range<usize> {
-        let start = self.tokens.get(start_cursor).map(|t| t.span.start).unwrap_or(0);
+        let start = self
+            .tokens
+            .get(start_cursor)
+            .map(|t| t.span.start)
+            .unwrap_or(0);
         let end = if self.cursor > start_cursor {
-            self.tokens.get(self.cursor - 1).map(|t| t.span.end).unwrap_or(start)
+            self.tokens
+                .get(self.cursor - 1)
+                .map(|t| t.span.end)
+                .unwrap_or(start)
         } else {
-            self.tokens.get(self.cursor).map(|t| t.span.start).unwrap_or(self.source.len())
+            self.tokens
+                .get(self.cursor)
+                .map(|t| t.span.start)
+                .unwrap_or(self.source.len())
         };
         start..end
     }
@@ -253,7 +263,9 @@ impl<'a> Parser<'a> {
             Some(Token::Identifier(idf)) => {
                 Ok(self.make_pattern(start_cursor, PatternKind::Variable(idf)))
             }
-            Some(Token::Digit) => Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Digit))),
+            Some(Token::Digit) => {
+                Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Digit)))
+            }
             Some(Token::Letter) => {
                 Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Letter)))
             }
@@ -263,17 +275,18 @@ impl<'a> Parser<'a> {
             Some(Token::Newline) => {
                 Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Newline)))
             }
-            Some(Token::Space) => Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Space))),
+            Some(Token::Space) => {
+                Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Space)))
+            }
             Some(Token::Any) => Ok(self.make_pattern(
                 start_cursor,
                 PatternKind::Repetition {
                     // desugar into 0..n ANYCHAR
                     min: Bound::Literal(0),
                     max: Bound::Anonymous,
-                    pattern: Box::new(self.make_pattern(
-                        start_cursor,
-                        PatternKind::Builtin(Builtin::AnyChar),
-                    )),
+                    pattern: Box::new(
+                        self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::AnyChar)),
+                    ),
                     bias,
                 },
             )),
@@ -305,7 +318,9 @@ impl<'a> Parser<'a> {
                     bias,
                 },
             )),
-            Some(Token::Line) => Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Line))),
+            Some(Token::Line) => {
+                Ok(self.make_pattern(start_cursor, PatternKind::Builtin(Builtin::Line)))
+            }
             Some(Token::LParen) => {
                 if self.is_next_inlined_statement() {
                     let stmt = self.parse_statement()?;
@@ -790,7 +805,10 @@ fourth = "D"
         }
 
         // ln = ANY
-        assert!(matches!(ln_stmt.pattern.node, PatternKind::Repetition { .. }));
+        assert!(matches!(
+            ln_stmt.pattern.node,
+            PatternKind::Repetition { .. }
+        ));
     }
 
     #[test]

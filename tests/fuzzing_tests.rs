@@ -74,7 +74,11 @@ mod fuzzing {
     ];
     const DIGITS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-    fn generate_matching_input_for_word_splitby(rng: &mut Rng, word_count: usize, sep: &str) -> String {
+    fn generate_matching_input_for_word_splitby(
+        rng: &mut Rng,
+        word_count: usize,
+        sep: &str,
+    ) -> String {
         let mut result = String::new();
         for i in 0..word_count {
             if i > 0 {
@@ -136,9 +140,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = generate_matching_input_for_word_splitby(&mut rng, word_count, ", ");
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 let result = evaluate_partition(query, &input);
                 if result.is_ok() {
@@ -158,10 +165,7 @@ mod fuzzing {
                 word_count, avg_time, std_error, success_count, ITERATIONS
             );
 
-            assert!(
-                success_count == ITERATIONS,
-                "Some matching inputs failed to parse"
-            );
+            assert_eq!(success_count, ITERATIONS, "Some matching inputs failed to parse");
         }
     }
 
@@ -186,9 +190,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = generate_matching_input_for_lines(&mut rng, line_count);
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 let result = evaluate_partition(query, &input);
                 if result.is_ok() {
@@ -208,10 +215,7 @@ mod fuzzing {
                 line_count, avg_time, std_error, success_count, ITERATIONS
             );
 
-            assert!(
-                success_count == ITERATIONS,
-                "Some matching inputs failed to parse"
-            );
+            assert_eq!(success_count, ITERATIONS, "Some matching inputs failed to parse");
         }
     }
 
@@ -233,9 +237,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = generate_nomatch_input(&mut rng, size, "digits");
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 let result = evaluate_partition(query, &input);
                 if result.is_err() {
@@ -255,10 +262,7 @@ mod fuzzing {
                 size, avg_time, std_error, nomatch_count, ITERATIONS
             );
 
-            assert!(
-                nomatch_count == ITERATIONS,
-                "Some no-match inputs unexpectedly matched"
-            );
+            assert_eq!(nomatch_count, ITERATIONS, "Some no-match inputs unexpectedly matched");
         }
     }
 
@@ -284,9 +288,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = generate_ambiguous_input(&mut rng, size);
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 let result = evaluate_partition(query, &input);
                 if result.is_err() {
@@ -331,9 +338,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = rng.gen_string(size, &valid_chars);
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 let result = evaluate_partition(query, &input);
                 if result.is_ok() {
@@ -353,10 +363,7 @@ mod fuzzing {
                 size, avg_time, std_error, success_count, ITERATIONS
             );
 
-            assert!(
-                success_count == ITERATIONS,
-                "Some valid alternation inputs failed"
-            );
+            assert_eq!(success_count, ITERATIONS, "Some valid alternation inputs failed");
         }
     }
 
@@ -378,9 +385,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = rng.gen_string(size, ALPHA);
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 total_time += mean;
                 total_time_sq += mean * mean;
@@ -427,14 +437,18 @@ mod fuzzing {
                     let key_len = rng.next_in_range(3, 10);
                     let key = rng.gen_string(key_len, ALPHA);
                     let value_len = rng.next_in_range(5, 50);
-                    let value_chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789 ".chars().collect();
+                    let value_chars: Vec<char> =
+                        "abcdefghijklmnopqrstuvwxyz0123456789 ".chars().collect();
                     let value = rng.gen_string(value_len, &value_chars);
                     input.push_str(&format!("{}: {}", key, value));
                 }
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 let result = evaluate_partition(query, &input);
                 if result.is_ok() {
@@ -454,10 +468,7 @@ mod fuzzing {
                 line_count, avg_time, std_error, success_count, ITERATIONS
             );
 
-            assert!(
-                success_count == ITERATIONS,
-                "Some valid complex capture inputs failed"
-            );
+            assert_eq!(success_count, ITERATIONS, "Some valid complex capture inputs failed");
         }
     }
 
@@ -480,9 +491,12 @@ mod fuzzing {
                 let mut rng = Rng::new(42 + iter as u64);
                 let input = rng.gen_string(size, ALPHANUMERIC);
 
-                let (mean, _) = measure_time_stats(|| {
-                    let _ = evaluate_partition(query, &input);
-                }, MEASUREMENT_RUNS);
+                let (mean, _) = measure_time_stats(
+                    || {
+                        let _ = evaluate_partition(query, &input);
+                    },
+                    MEASUREMENT_RUNS,
+                );
 
                 total_time += mean;
             }
@@ -491,7 +505,10 @@ mod fuzzing {
 
             if prev_avg_time > 10000.0 {
                 let ratio = avg_time / prev_avg_time;
-                println!("Size: {}, Avg time: {:.0} ns, Ratio from previous: {:.2}", size, avg_time, ratio);
+                println!(
+                    "Size: {}, Avg time: {:.0} ns, Ratio from previous: {:.2}",
+                    size, avg_time, ratio
+                );
 
                 // For polynomial time, ratio should be bounded (2^k for O(n^k))
                 // Allow up to 16x for O(n^4) or noise

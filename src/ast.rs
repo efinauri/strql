@@ -153,7 +153,10 @@ impl PatternKind {
                     vars.push(v);
                 }
             }
-            PatternKind::AnyCase(p) | PatternKind::Upper(p) | PatternKind::Lower(p) | PatternKind::Group(p) => {
+            PatternKind::AnyCase(p)
+            | PatternKind::Upper(p)
+            | PatternKind::Lower(p)
+            | PatternKind::Group(p) => {
                 p.node.collect_variables(vars);
             }
             PatternKind::Literal(_) | PatternKind::Builtin(_) => {}

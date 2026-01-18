@@ -16,7 +16,12 @@ mod performance {
         res
     }
 
-    fn generate_words_with_separator(word_count: usize, word_len: usize, sep: &str, seed: u64) -> String {
+    fn generate_words_with_separator(
+        word_count: usize,
+        word_len: usize,
+        sep: &str,
+        seed: u64,
+    ) -> String {
         let mut res = String::new();
         let mut rng = seed;
         let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz".chars().collect();
@@ -72,7 +77,8 @@ mod performance {
         }
 
         let mean = times.iter().sum::<f64>() / times.len() as f64;
-        let variance = times.iter().map(|t| (t - mean).powi(2)).sum::<f64>() / (times.len() - 1) as f64;
+        let variance =
+            times.iter().map(|t| (t - mean).powi(2)).sum::<f64>() / (times.len() - 1) as f64;
         let std_dev = variance.sqrt();
         let std_error = std_dev / (times.len() as f64).sqrt();
 
@@ -157,13 +163,20 @@ mod performance {
 
             println!(
                 "Words: {}, Input len: {}, Time: {:.0} ± {:.0} ns",
-                word_count, input.len(), mean, std_error
+                word_count,
+                input.len(),
+                mean,
+                std_error
             );
 
             if prev_time > 10000.0 {
                 let ratio = mean / prev_time;
                 println!("  Ratio from previous: {:.2}", ratio);
-                assert!(ratio < 16.0, "Performance degradation too high: {:.2}", ratio);
+                assert!(
+                    ratio < 16.0,
+                    "Performance degradation too high: {:.2}",
+                    ratio
+                );
             }
             prev_time = mean;
         }
@@ -189,13 +202,20 @@ mod performance {
 
             println!(
                 "Lines: {}, Input len: {}, Time: {:.0} ± {:.0} ns",
-                line_count, input.len(), mean, std_error
+                line_count,
+                input.len(),
+                mean,
+                std_error
             );
 
             if prev_time > 10000.0 {
                 let ratio = mean / prev_time;
                 println!("  Ratio from previous: {:.2}", ratio);
-                assert!(ratio < 16.0, "Performance degradation too high: {:.2}", ratio);
+                assert!(
+                    ratio < 16.0,
+                    "Performance degradation too high: {:.2}",
+                    ratio
+                );
             }
             prev_time = mean;
         }
@@ -218,16 +238,17 @@ mod performance {
                 let _ = evaluate_partition(query, &input);
             });
 
-            println!(
-                "Size: {}, Time: {:.0} ± {:.0} ns",
-                size, mean, std_error
-            );
+            println!("Size: {}, Time: {:.0} ± {:.0} ns", size, mean, std_error);
 
             if prev_time > 10000.0 {
                 let ratio = mean / prev_time;
                 println!("  Ratio from previous: {:.2}", ratio);
                 // Nested quantifiers can be quadratic
-                assert!(ratio < 32.0, "Performance degradation too high: {:.2}", ratio);
+                assert!(
+                    ratio < 32.0,
+                    "Performance degradation too high: {:.2}",
+                    ratio
+                );
             }
             prev_time = mean;
         }
@@ -251,15 +272,16 @@ mod performance {
                 let _ = evaluate_partition(query, &input);
             });
 
-            println!(
-                "Size: {}, Time: {:.0} ± {:.0} ns",
-                size, mean, std_error
-            );
+            println!("Size: {}, Time: {:.0} ± {:.0} ns", size, mean, std_error);
 
             if prev_time > 10000.0 {
                 let ratio = mean / prev_time;
                 println!("  Ratio from previous: {:.2}", ratio);
-                assert!(ratio < 16.0, "Performance degradation too high: {:.2}", ratio);
+                assert!(
+                    ratio < 16.0,
+                    "Performance degradation too high: {:.2}",
+                    ratio
+                );
             }
             prev_time = mean;
         }
@@ -293,13 +315,20 @@ mod performance {
 
             println!(
                 "Lines: {}, Input len: {}, Time: {:.0} ± {:.0} ns",
-                line_count, input.len(), mean, std_error
+                line_count,
+                input.len(),
+                mean,
+                std_error
             );
 
             if prev_time > 10000.0 {
                 let ratio = mean / prev_time;
                 println!("  Ratio from previous: {:.2}", ratio);
-                assert!(ratio < 16.0, "Performance degradation too high: {:.2}", ratio);
+                assert!(
+                    ratio < 16.0,
+                    "Performance degradation too high: {:.2}",
+                    ratio
+                );
             }
             prev_time = mean;
         }
